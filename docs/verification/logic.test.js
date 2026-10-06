@@ -1,0 +1,57 @@
+require('fake-indexeddb/auto');
+const fs=require('fs'), vm=require('vm');
+const root=require('path').resolve(__dirname,'../../assets/js')+'/';
+const ctx={window:{},indexedDB,console,Date,Promise,setTimeout,RegExp};ctx.window=ctx; vm.createContext(ctx);
+['data','db','logic'].forEach(f=>vm.runInContext(fs.readFileSync(root+f+'.js','utf8'),ctx,{filename:f}));
+const L=ctx.SP.logic; let fails=0;
+const ok=(c,m)=>{ if(!c){fails++;console.log('FAIL',m);} else console.log('ok  ',m); };
+(async()=>{
+ await L.init();
+ ok((await L.counts()).departments===19,'seeded departments');
+ // routing
+ ok(L.matchService('আমার হাতে ব্যথা').id==='bone','hand pain -> bone');
+ ok(L.matchService('আমার মাথা ব্যথা').id==='head','headache -> head');
+ ok(L.matchService('I have fever').id==='fever','fever en');
+ ok(L.matchService('কুকুর কামড়েছে').id==='bite','dog bite');
+ ok((L.matchService('hear')||{}).id!=='ent','"hear" must not match ear');
+ ok((L.matchService('পাতলা পায়খানা')||{}).id==='stomach','pa- substring not bone');
+ ok(L.matchService('xyz')===null && L.matchService('')===null,'no match -> null');
+ ok(L.matchRedFlag('বুকে ব্যথা করছে').id==='chest','red flag chest');
+ ok(L.matchRedFlag('severe bleeding').id==='bleeding','red flag en');
+ ok(L.matchRedFlag('হাতে ব্যথা')===null,'no false red flag');
+ const yn=ctx.SP.seed.questions.injury.opts;
+ ok(L.matchOption(yn,'জানি না')==='unknown','জানি না -> unknown (not no)');
+ ok(L.matchOption(yn,'হ্যাঁ')==='yes' && L.matchOption(yn,'না')==='no','yes/no');
+ ok(L.digits('০১৭০০-০০০০০১')==='01700000001','bengali digits');
+ // tokens
+ const p=await L.savePatient({name:'টেস্ট',phone:'০১৮০০০০০০০০'});
+ const mk=(pr)=>L.createToken({deptId:'MED',kind:'new',priority:pr,patientId:p.id,patientName:'x',intake:{}});
+ const t1=await mk(0), t2=await mk(0), t3=await mk(1);
+ ok(t1.code==='MED-001'&&t2.code==='MED-002'&&t3.code==='MED-003','sequential codes');
+ const par=await Promise.all([mk(0),mk(0),mk(0)]);
+ ok(new Set(par.map(t=>t.code)).size===3,'concurrent tokens unique: '+par.map(t=>t.code));
+ ok(t3.aheadAtIssue===0,'priority ahead=0');
+ let all=await ctx.SP.db.all('tokens');
+ const n1=await L.callNext('MED'); ok(n1.code==='MED-003','priority called first');
+ let threw=null; try{await L.callNext('MED')}catch(e){threw=e.message} ok(threw==='SERVING','cannot call while serving');
+ await L.recall(n1.id); all=await ctx.SP.db.all('tokens'); ok(all.find(t=>t.id===n1.id).recalls===1,'recall');
+ await L.complete(n1.id);
+ const n2=await L.callNext('MED'); ok(n2.code==='MED-001','FIFO next');
+ await L.skip(n2.id); await L.requeue(n2.id); all=await ctx.SP.db.all('tokens');
+ ok(L.waitingOf(all,'MED').pop().code==='MED-001','requeued goes to end');
+ const nt=await L.transfer(t2.id,'ORT'); ok(nt.code==='ORT-001'&&nt.transferredFrom==='MED-002','transfer');
+ all=await ctx.SP.db.all('tokens'); ok(L.resolve(t2.id,all).code==='ORT-001','resolve follows transfer');
+ threw=null; try{await L.createToken({deptId:'WC'})}catch(e){threw=e.message} ok(threw==='NO_QUEUE','no token for facility');
+ // follow-up
+ let r=await L.findFollowups('01700000001'); ok(r.length===1&&r[0].f.deptId==='AR','find rahim followup');
+ ok((await L.findFollowups('123')).length===0,'short phone -> none');
+ const c=await L.checkinFollowup('fu_demo_1'); ok(c.token.code==='AR-FU-001'&&c.token.visitNo===2,'followup token AR-FU-001');
+ const c2=await L.checkinFollowup('fu_demo_1'); ok(c2.existing&&c2.token.id===c.token.id,'no duplicate checkin');
+ threw=null; try{await L.checkinFollowup('fu_demo_2')}catch(e){threw=e.message} ok(threw==='NOT_YET','future followup blocked');
+ const s=await L.callNext('AR-FU'); await L.complete(s.id);
+ ok((await ctx.SP.db.get('followups','fu_demo_1')).status==='completed','followup completed with token');
+ const f=await L.scheduleFollowup({patientId:p.id,deptId:'MED',date:L.addDays(7),visitNo:3,label:'x'}); ok(f.status==='scheduled','schedule followup');
+ await L.seedWaiting(); ok((await ctx.SP.db.all('tokens')).length>10,'seedWaiting');
+ await L.resetDemo(); ok((await L.counts()).tokens===0 && (await L.counts()).departments===19,'reset');
+ console.log(fails?('FAILED '+fails):'ALL PASS');
+})().catch(e=>{console.log('ERR',e);process.exit(1)});

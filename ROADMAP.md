@@ -1,5 +1,26 @@
 # ShasthoPath — Roadmap
 
+## Status at a glance (updated by the MVP implementation session)
+
+| Phase | Status | Notes |
+|---|---|---|
+| 0 Foundation | **Done** | Structure, IndexedDB, seed data, design language |
+| 1 Patient Navigation MVP | **Done (headless-verified)** | Kiosk, bn/en, problem input, questions, routing, token, ticket, directions |
+| 2 Smart Intake | **Done (headless-verified)** | Voice via Web Speech API with touch fallback; unknowns preserved; doctor summary |
+| 3 Queue Management | **Done (headless-verified)** | Per-service queues (not per-doctor), display, call/recall/skip/complete/transfer/priority/emergency |
+| 4 Follow-Up & Scheduled Visits | **Done (headless-verified)** | Phone lookup, dedicated `-FU` queue, clinician-set dates; reminder = concept only (date shown, nothing sent) |
+| 5 Hospital Navigation | **Done, schematic** | Building/floor/room, text steps, SVG schematic map, directory. No real floor plans |
+| 6 Demonstration Experience | **Implemented, NOT browser-verified** | Fullscreen, demo mode, print ticket, displays. Animations minimal |
+| 7 Production Architecture Study | Not started (out of MVP) | |
+| 8 Pilot Proposal | Not started (out of MVP) | |
+| 9 Production | Not started (out of MVP) | Only after validation with a real hospital |
+
+**Next task:** real-browser QA pass, then record the demo (see ai-handover.md).
+
+"Headless-verified" = `docs/verification/*.test.js` pass in jsdom with fake IndexedDB. No real browser has been used yet.
+
+---
+
 ## Phase 0 — Foundation
 
 - Repository structure
@@ -10,7 +31,7 @@
 - IndexedDB foundation
 
 Status:
-Not started
+Done
 
 ---
 

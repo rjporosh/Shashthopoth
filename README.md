@@ -187,3 +187,43 @@ It is to make those systems easier for humans to use.
 ### স্বাস্থ্যপথ
 
 **সঠিক জায়গা। সঠিক সময়ে। কম ঝামেলায়।**
+
+---
+
+# Current Status
+
+**MVP prototype implemented** (see ROADMAP.md). Verified headlessly (jsdom + fake IndexedDB); **not yet checked in a real browser** — that is the next task (ai-handover.md).
+
+## Run it
+
+No install, no server, no build. Open `index.html` in Chrome, Edge or Firefox (double-click is fine). Use a normal, non-private window (IndexedDB is required).
+
+Four tabs at the top:
+
+| Tab | Who | What |
+|---|---|---|
+| Patient kiosk | Patient | The whole patient journey, Bengali-first (English toggle) |
+| Queue display | Waiting area | NOW SERVING / NEXT / WAITING per queue |
+| Doctor / staff | Clinician | Call next, recall, skip, complete, transfer, priority, intake summary, schedule follow-up |
+| Demo & admin | Presenter | 12-step demo script, seed demo queue, reset demo data, read-only config |
+
+## Files
+
+```text
+index.html                 app shell
+assets/css/style.css       kiosk + print styles
+assets/js/data.js          seed config: routing, red flags, questions, departments, locations (fictional)
+assets/js/db.js            IndexedDB wrapper (atomic transactions)
+assets/js/logic.js         routing, tokens, queues, follow-ups
+assets/js/ui.js            strings + patient kiosk screens
+assets/js/staff.js         display, doctor console, admin, render loop, live sync
+docs/verification/         dev-only headless tests (not part of the product)
+```
+
+## Demo in 2–3 minutes
+
+Admin ▸ **Reset demo data** → Kiosk ▸ *I need treatment* → "hand pain" → answer → Orthopedics → *Fill demo data* → token **ORT-001** + ticket → directions → Queue display → Doctor ▸ *Call next* → intake summary → *Schedule follow-up* → *Complete* → Kiosk ▸ *scheduled visit* → `01700000001` → follow-up token **AR-FU-001**. Emergency: type `বুকে ব্যথা`.
+
+## Known limits (honest list)
+
+Not browser-tested; voice depends on the browser's Web Speech API; map is schematic; queues are per service, not per doctor; follow-up identity check is demo-grade; all data is fictional. Full list in ai-handover.md.
